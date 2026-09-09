@@ -128,6 +128,7 @@
   --glow1:rgba(243,159,199,.26); --glow2:rgba(205,196,234,.30); --glow3:rgba(246,196,155,.13);
   --p-alab:#8a6ec9; --p-neft:#7f9bce; --p-blok:#ee7ab4; --p-pr32:#9f86d6; --p-ikos:#e0a06a;
   --p-scale:#6f93c4; --p-mtra:#ef8f6a; --p-est:#c78bbd; --p-kuk:#8f7fb8; --p-pt:#8a8f98;
+  --p-lice:#5fb3ba; --p-lev:#d4809b; --p-mila:#b3944f;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --ground:#111116; --panel:rgba(255,255,255,.045); --panel2:rgba(255,255,255,.03);
@@ -137,6 +138,7 @@
   --glow1:rgba(238,122,180,.14); --glow2:rgba(138,110,201,.18); --glow3:rgba(246,196,155,.07);
   --p-alab:#b7a2e8; --p-neft:#93aede; --p-blok:#f193c4; --p-pr32:#b39ae6; --p-ikos:#e8b183;
   --p-scale:#87a8d8; --p-mtra:#f4a684; --p-est:#d9a3d0; --p-kuk:#a695cd; --p-pt:#9ea3ad;
+  --p-lice:#7fd0d7; --p-lev:#eb9db4; --p-mila:#d6bb7a;
 }}
 :root[data-theme="dark"]{
   --ground:#111116; --panel:rgba(255,255,255,.045); --panel2:rgba(255,255,255,.03);
@@ -146,6 +148,7 @@
   --glow1:rgba(238,122,180,.14); --glow2:rgba(138,110,201,.18); --glow3:rgba(246,196,155,.07);
   --p-alab:#b7a2e8; --p-neft:#93aede; --p-blok:#f193c4; --p-pr32:#b39ae6; --p-ikos:#e8b183;
   --p-scale:#87a8d8; --p-mtra:#f4a684; --p-est:#d9a3d0; --p-kuk:#a695cd; --p-pt:#9ea3ad;
+  --p-lice:#7fd0d7; --p-lev:#eb9db4; --p-mila:#d6bb7a;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--ink);
@@ -205,19 +208,24 @@ section.view{padding:22px 0 0}
 
 /* список задач */
 .list{border:1px solid var(--line);border-radius:15px;background:var(--panel);overflow:hidden}
-.row{display:grid;grid-template-columns:1fr 146px 158px 92px 62px;gap:10px;align-items:center;
+.row{display:grid;grid-template-columns:1fr 142px 152px 152px 58px;gap:10px;align-items:center;
   padding:9px 16px;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
 .row.hdr{padding:7px 16px;background:var(--panel2)}
 .row.hdr span{font-size:9px;text-transform:uppercase;letter-spacing:.14em;color:var(--soft);font-weight:500}
-.row.hdr .bx{display:grid;grid-template-columns:1fr 1fr;gap:14px;text-align:center}
+.row.hdr .bx{gap:10px}
+.row.hdr .bx span{text-align:center}
 .ttl{font-size:14.5px;line-height:1.4;padding-left:17px;position:relative;min-width:0}
 .ttl:before{content:"";position:absolute;left:0;top:8px;width:7px;height:7px;border-radius:50%;
-  background:linear-gradient(120deg,var(--magenta),var(--peach))}
+  background:var(--pc,var(--lilac))}
+.ttl .pj{display:inline-block;font-size:11px;font-weight:500;letter-spacing:.05em;line-height:1.3;
+  color:var(--pc,var(--lilac));border:1px solid currentColor;border-radius:7px;padding:1px 8px;
+  margin-right:9px;vertical-align:1px;white-space:nowrap}
+.row.is-done .ttl .pj{opacity:.5}
 .row.is-done .ttl{color:var(--soft)}
 .row.is-done .ttl b{text-decoration:line-through;text-decoration-color:var(--hair)}
 .ttl b{font-weight:400}
-.bx{display:flex;gap:14px;justify-content:center}
+.bx{display:grid;grid-template-columns:1fr 1fr;gap:10px;justify-items:center;align-items:center}
 .tick{width:19px;height:19px;border:1.5px solid var(--hair);border-radius:6px;background:transparent;
   display:grid;place-items:center;transition:border-color .15s,background .15s;flex:0 0 auto}
 .tick svg{width:11px;height:11px;opacity:0;transform:scale(.6);transition:opacity .15s,transform .15s}
@@ -239,10 +247,9 @@ section.view{padding:22px 0 0}
   border:1px solid var(--lilac);border-radius:8px;padding:4px 9px;width:100%;min-width:0}
 .empty{padding:15px 16px;font-size:13.5px;color:var(--dim)}
 @media(max-width:820px){
-  .row{grid-template-columns:1fr 92px 62px;gap:8px;padding:9px 13px}
+  .row{grid-template-columns:1fr 112px 58px;gap:8px;padding:9px 13px}
   .psel,.wsel{display:none}
   .row.hdr .prjh,.row.hdr .wkh{display:none}
-  .bx{gap:11px}
 }
 
 /* добавление */
@@ -267,6 +274,7 @@ section.view{padding:22px 0 0}
 .nb textarea{width:100%;min-height:86px;resize:vertical;font:inherit;font-size:13.5px;line-height:1.5;color:var(--ink);
   background:transparent;border:0;padding:0;outline:none}
 .nb textarea::placeholder{color:var(--dim)}
+.nbtxt{display:none}
 
 /* недели на вкладке месяца */
 .wgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));gap:11px}
@@ -301,9 +309,40 @@ section.view{padding:22px 0 0}
 .hint b{font-weight:500;color:var(--ink)}
 
 @media print{
-  body{background:#fff;background-image:none;font-size:11px}
-  .tools,.sync,nav.tabs,.addrow,.tools2,.mnav{display:none!important}
-  .wrap{max-width:none;padding:0 10mm}
+  body{background:#fff;background-image:none;font-size:10.5px}
+  .tools,.sync,.sync-row,nav.tabs,.addrow,.tools2,.mnav,.sub,.hint,.nb.chief{display:none!important}
+  .wrap{max-width:none;padding:0}
+  header.top{padding:0}
+  .kicker{font-size:8px;letter-spacing:.18em;margin-bottom:4px}
+  h1{font-size:21px;margin:0}
+  .mark{font-size:15px}
+  section.view{padding:12px 0 0}
+  /* плашки ритма - узкой строкой, без пояснений */
+  .rit{grid-template-columns:repeat(3,1fr)!important;gap:7px;margin-bottom:13px}
+  .rc{padding:6px 11px;border-radius:9px}
+  .rc .rw{font-size:7.5px;letter-spacing:.13em}
+  .rc .rd{font-size:12.5px;margin-top:2px}
+  .rc .rt{display:none}
+  .eyebrow{margin:13px 0 7px;font-size:8.5px}
+  /* задачи: текст, метка проекта и две галочки */
+  .row{grid-template-columns:1fr 118px;gap:8px;padding:5px 11px}
+  .row .psel,.row .wsel,.row.hdr .wkh,.row.hdr .prjh{display:none}
+  .ttl{font-size:11px;padding-left:14px}
+  .ttl:before{top:6px;width:6px;height:6px}
+  .ttl .pj{font-size:8.5px;padding:0 6px;margin-right:7px}
+  .row.hdr span{font-size:7.5px}
+  .tick{width:13px;height:13px;border-width:1.2px}
+  .tick svg{width:8px;height:8px}
+  .list{border-radius:10px}
+  .notes{grid-template-columns:1fr;margin-top:11px}
+  .nb{padding:9px 12px 10px}
+  .nb label{font-size:8px;margin-bottom:5px}
+  .nb textarea{display:none}
+  .nbtxt{display:block!important;font-size:10.5px;line-height:1.5;white-space:pre-wrap;min-height:34px}
+  .big{gap:8px;margin-bottom:14px}
+  .bg{padding:10px 13px}.bg .n{font-size:24px}.bg .l{font-size:8px;margin-top:4px}
+  .tr{padding:5px 11px;font-size:10.5px}
+  .wcard{padding:9px 11px}
   .list,.tbl,.rc,.nb,.wcard{break-inside:avoid}
   @page{size:A4;margin:12mm}
 }
@@ -320,7 +359,7 @@ section.view{padding:22px 0 0}
           <h1 id="mtitle">Месяц</h1>
           <button type="button" class="mnav" id="nextM" title="Следующий месяц" aria-label="Следующий месяц">›</button>
         </div>
-        <div class="sub">Анастасия ставит задачи и отмечает сделанное, Александра проверяет.</div>
+        <div class="sub">Анастасия ставит задачи и отмечает выполненное, Александра проверяет.</div>
       </div>
       <div class="mark">a<span>.</span>lab</div>
     </div>
@@ -349,9 +388,10 @@ window.__SAVED__ = null; // SAVEDLINE
 const PROJ = {
   alab:{n:"a.lab · внутреннее", c:"--p-alab"},
   site:{n:"a.lab · сайт", c:"--p-alab"},
-  mn:  {n:"a.lab · МножЬ", c:"--p-alab"},
   prem:{n:"a.lab · премии", c:"--p-alab"},
-  g8:  {n:"a.lab · G8", c:"--p-alab"},
+  lice:{n:"Lari · мороженое", c:"--p-lice"},
+  lev: {n:"Lari · мероприятия", c:"--p-lev"},
+  mila:{n:"Milado", c:"--p-mila"},
   neft:{n:"Нефть", c:"--p-neft"},
   blok:{n:"Блок 12", c:"--p-blok"},
   pr32:{n:"Принцип 32", c:"--p-pr32"},
@@ -480,23 +520,27 @@ function whereOptions(sel){
 function ticks(id){
   const s = st(id);
   return '<span class="bx">'
-    + '<button class="tick d" data-id="' + id + '" data-k="d" aria-pressed="' + s.d + '" title="Сделано" aria-label="Сделано">' + TICK + '</button>'
-    + '<button class="tick c" data-id="' + id + '" data-k="c" aria-pressed="' + s.c + '" title="Проверено руководителем" aria-label="Проверено руководителем">' + TICK + '</button></span>';
+    + '<button class="tick d" data-id="' + id + '" data-k="d" aria-pressed="' + s.d + '" title="Выполнена" aria-label="Выполнена">' + TICK + '</button>'
+    + '<button class="tick c" data-id="' + id + '" data-k="c" aria-pressed="' + s.c + '" title="Проверена руководителем" aria-label="Проверена руководителем">' + TICK + '</button></span>';
 }
+const pr = p => PROJ[p] || {n:"без проекта", c:"--p-pt"};
 function rowHTML(t){
-  const s = st(t.id);
+  const s = st(t.id), P = pr(t.p);
   return '<div class="row' + (s.d ? " is-done" : "") + '">'
-    + '<span class="ttl"><b class="tt" data-id="' + t.id + '">' + esc(t.t) + '</b></span>'
-    + '<select class="psel" data-id="' + t.id + '" title="Проект">' + projOptions(t.p) + '</select>'
-    + '<select class="wsel" data-id="' + t.id + '" title="Куда отнести задачу">' + whereOptions(t.w) + '</select>'
+    + '<span class="ttl" style="--pc:var(' + P.c + ')">'
+    + '<span class="pj">' + esc(P.n) + '</span>'
+    + '<b class="tt" data-id="' + t.id + '">' + esc(t.t) + '</b></span>'
     + ticks(t.id)
+    + '<select class="wsel" data-id="' + t.id + '" title="Когда: план месяца или неделя">' + whereOptions(t.w) + '</select>'
+    + '<select class="psel" data-id="' + t.id + '" title="Проект">' + projOptions(t.p) + '</select>'
     + '<span class="tools2">'
     + '<button class="edit" data-id="' + t.id + '" title="Изменить текст" aria-label="Изменить текст">✎</button>'
     + '<button class="del" data-id="' + t.id + '" title="Удалить задачу" aria-label="Удалить задачу">×</button></span>'
     + '</div>';
 }
-const HDR = '<div class="row hdr"><span>Задача</span><span class="prjh">Проект</span><span class="wkh">Когда</span>'
-          + '<span class="bx"><span>Сделала</span><span>Проверено</span></span><span></span></div>';
+const HDR = '<div class="row hdr"><span>Задача</span>'
+          + '<span class="bx"><span>Выполнена</span><span>Проверена</span></span>'
+          + '<span class="wkh">Дата</span><span class="prjh">Проект</span><span></span></div>';
 
 function listHTML(w, emptyText){
   const list = tasksOf(w);
@@ -504,15 +548,16 @@ function listHTML(w, emptyText){
     + (list.length ? list.map(rowHTML).join("") : '<div class="empty">' + esc(emptyText) + '</div>')
     + '<form class="addrow" data-w="' + w + '">'
     + '<input name="t" placeholder="Новая задача" autocomplete="off">'
-    + '<select name="p">' + projOptions("alab") + '</select>'
     + '<select name="w">' + whereOptions(w) + '</select>'
+    + '<select name="p">' + projOptions("alab") + '</select>'
     + '<button type="submit">Добавить</button></form></div>';
 }
 function noteHTML(k, lab1, ph1, lab2, ph2){
   const n = mdata().notes[k] || {};
   return '<div class="notes">'
     + '<div class="nb"><label>' + esc(lab1) + '</label>'
-    + '<textarea data-note="' + k + '" data-f="res" placeholder="' + esc(ph1) + '">' + esc(n.res || "") + '</textarea></div>'
+    + '<textarea data-note="' + k + '" data-f="res" placeholder="' + esc(ph1) + '">' + esc(n.res || "") + '</textarea>'
+    + '<div class="nbtxt" data-note-txt="' + k + '">' + esc(n.res || "") + '</div></div>'
     + '<div class="nb chief"><label>' + esc(lab2) + '</label>'
     + '<textarea data-note="' + k + '" data-f="chief" placeholder="' + esc(ph2) + '">' + esc(n.chief || "") + '</textarea></div>'
     + '</div>';
@@ -527,7 +572,7 @@ function monthHTML(){
     + '<div class="rc"><div class="rw">Каждый понедельник</div><div class="rd">План на неделю</div>'
     + '<div class="rt">Задачи недели ставятся на планёрке.</div></div>'
     + '<div class="rc"><div class="rw">Каждый четверг</div><div class="rd">Проверка сделанного</div>'
-    + '<div class="rt">Первая галочка - моя, вторая - Александры.</div></div></div>';
+    + '<div class="rt">Первая галочка «выполнена» - моя, вторая «проверена» - Александры.</div></div></div>';
 
   h += '<div class="eyebrow">Задачи месяца</div>'
     + listHTML("m", "Задач месяца пока нет. Впишите их в строке ниже.");
@@ -539,7 +584,7 @@ function monthHTML(){
     const kk = count(tasksOf(w.i)), mon = dayWithDow(w, 0), thu = dayWithDow(w, 3);
     return '<button type="button" class="wcard' + (w.i === curWeek() ? " now" : "") + '" data-go="w' + w.i + '">'
       + '<div class="wn">Неделя ' + w.i + '</div><div class="wd">' + wkLabel(w) + '</div>'
-      + '<div class="wk2">' + (kk.n ? (kk.d + " из " + kk.n + " сделано · " + kk.c + " проверено")
+      + '<div class="wk2">' + (kk.n ? (kk.d + " из " + kk.n + " выполнено · " + kk.c + " проверено")
                                     : "задач нет") + '</div>'
       + barHTML(kk)
       + '<div class="wk2" style="margin-top:6px">' + (mon ? "план " + SH[0].toLowerCase() + " " + mon : "план с начала месяца")
@@ -563,7 +608,7 @@ function weekHTML(i){
     + '<div class="rt">Задачи ставятся на планёрке.</div></div>'
     + '<div class="rc' + (t && thu && t === thu ? " hot" : "") + '"><div class="rw">Отчёт и проверка</div>'
     + '<div class="rd">' + (thu ? "Четверг " + thu + " " + MNR[M] : "Конец недели") + '</div>'
-    + '<div class="rt">Отмечаю сделанное, Александра проверяет.</div></div>'
+    + '<div class="rt">Отмечаю выполненное, Александра проверяет.</div></div>'
     + '<div class="rc"><div class="rw">Готовность</div>'
     + '<div class="rd">' + k.d + " из " + k.n + '</div>'
     + '<div class="rt">' + (k.c ? "проверено " + k.c : "проверок пока нет") + '</div></div></div>';
@@ -581,11 +626,11 @@ function sumHTML(){
   const all = mdata().tasks, k = count(all);
   let h = '<div class="big">'
     + '<div class="bg"><div class="n">' + k.n + '</div><div class="l">Задач в месяце</div></div>'
-    + '<div class="bg d"><div class="n">' + k.d + '</div><div class="l">Сделано</div></div>'
+    + '<div class="bg d"><div class="n">' + k.d + '</div><div class="l">Выполнено</div></div>'
     + '<div class="bg c"><div class="n">' + k.c + '</div><div class="l">Проверено</div></div></div>';
 
   h += '<div class="eyebrow">По неделям</div><div class="tbl">'
-    + '<div class="tr hdr"><span>Период</span><span>Сделано</span><span>Проверено</span><span class="bar-h"></span></div>';
+    + '<div class="tr hdr"><span>Период</span><span>Выполнено</span><span>Проверено</span><span class="bar-h"></span></div>';
   const mk = count(tasksOf("m"));
   h += '<div class="tr"><span>План месяца</span><span class="v"><b>' + mk.d + '</b> / ' + mk.n + '</span>'
      + '<span class="v"><b>' + mk.c + '</b> / ' + mk.n + '</span>' + barHTML(mk) + '</div>';
@@ -601,11 +646,11 @@ function sumHTML(){
   h += '<div class="eyebrow">По проектам</div>';
   if (!used.length) h += '<div class="tbl"><div class="empty">Задач ещё нет.</div></div>';
   else {
-    h += '<div class="tbl"><div class="tr hdr"><span>Проект</span><span>Сделано</span><span>Проверено</span><span></span></div>';
+    h += '<div class="tbl"><div class="tr hdr"><span>Проект</span><span>Выполнено</span><span>Проверено</span><span></span></div>';
     used.forEach(p => {
       const kk = count(all.filter(t => t.p === p));
-      h += '<div class="tr"><span style="padding-left:11px;border-left:2px solid var(' + PROJ[p].c + ')">'
-         + esc(PROJ[p].n) + '</span>'
+      h += '<div class="tr"><span style="padding-left:11px;border-left:2px solid var(' + pr(p).c + ')">'
+         + esc(pr(p).n) + '</span>'
          + '<span class="v"><b>' + kk.d + '</b> / ' + kk.n + '</span>'
          + '<span class="v"><b>' + kk.c + '</b> / ' + kk.n + '</span>' + barHTML(kk) + '</div>';
     });
@@ -631,7 +676,7 @@ function renderAll(){
   const k = count(mdata().tasks);
   document.getElementById("topbar").style.width = (k.n ? Math.round(k.d / k.n * 100) : 0) + "%";
   document.getElementById("topnum").innerHTML = k.n
-    ? "сделано <b>" + k.d + "</b> из <b>" + k.n + "</b> · проверено <b>" + k.c + "</b>"
+    ? "выполнено <b>" + k.d + "</b> из <b>" + k.n + "</b> · проверено <b>" + k.c + "</b>"
     : "задач пока нет";
 
   const y = window.scrollY;
@@ -723,6 +768,7 @@ document.addEventListener("input", e => {
   const k = ta.dataset.note;
   if (!n[k]) n[k] = {};
   n[k][ta.dataset.f] = ta.value;
+  if (ta.dataset.f === "res") syncNote(k, ta.value);
   save();                                    // без перерисовки: курсор остаётся в поле
 });
 
@@ -750,6 +796,10 @@ function download(text, name, type){
   a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function syncNote(k, v){                              // в печать текст идёт блоком, не полем ввода
+  const el = document.querySelector('.nbtxt[data-note-txt="' + k + '"]');
+  if (el) el.textContent = v;
 }
 document.getElementById("btnPrint").addEventListener("click", () => window.print());
 
