@@ -185,6 +185,17 @@ h1{font-size:clamp(29px,4.4vw,42px);line-height:1.05;font-weight:300;margin:.16e
 .pnum{font-size:13px;color:var(--soft);font-variant-numeric:tabular-nums;white-space:nowrap}
 .pnum b{color:var(--ink);font-weight:500}
 .sync{font-size:11px;color:var(--dim);letter-spacing:.04em}
+.bkp{margin-top:12px;border:1px solid var(--line);border-radius:13px;background:var(--panel);padding:11px 15px 13px}
+.bkp .bh{font-size:9.5px;text-transform:uppercase;letter-spacing:.16em;color:var(--lilac);font-weight:500;margin-bottom:9px}
+.bkp .bt{font-size:12.5px;color:var(--soft);line-height:1.45;margin-bottom:10px}
+.bkpr{display:flex;align-items:center;gap:12px;padding:5px 0;font-size:13px;color:var(--soft);
+  font-variant-numeric:tabular-nums}
+.bkpr+.bkpr{border-top:1px solid var(--line)}
+.bkpr b{color:var(--ink);font-weight:500}
+.bkpb{font:inherit;font-size:11.5px;font-weight:500;color:var(--lilac);border:1px solid var(--hair);
+  border-radius:8px;padding:3px 11px;margin-left:auto;cursor:pointer;background:transparent}
+.bkpb:hover{background:var(--panel2)}
+.bkpe{font-size:13px;color:var(--dim)}
 
 nav.tabs{display:flex;gap:4px;margin:22px 0 4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 nav.tabs button{padding:8px 10px;font-size:12.5px;white-space:nowrap;color:var(--soft);border-bottom:2px solid transparent;
@@ -384,12 +395,14 @@ section.view{padding:22px 0 0}
       <span class="pnum" id="topnum"></span>
       <span class="tools">
         <button type="button" id="btnPrint">Печать / PDF</button>
+        <button type="button" id="btnBkp">Копии задач</button>
         <button type="button" id="btnSave">Сохранить копию файла</button>
         <button type="button" id="btnExp">Выгрузить отметки</button>
         <label class="fbtn">Загрузить отметки<input type="file" id="fileImp" accept="application/json" hidden></label>
       </span>
     </div>
-    <div class="sync-row"><span class="sync" id="sync">отметки сохраняются в этом браузере</span></div>
+    <div class="sync-row"><span class="sync" id="sync">задачи и отметки хранятся в этом браузере · онлайн-страница и файл на компьютере - разные хранилища</span></div>
+    <div class="bkp" id="bkp" hidden></div>
 
     <nav class="tabs" role="tablist" id="tabs"></nav>
   </header>
@@ -452,14 +465,51 @@ function migrate(){                                        // старые за�
     });
   });
 }
+function mergeIn(v){                                 // складывает чужие данные с текущими, ничего не затирая
+  const inc = (v && v.db) || {};
+  Object.keys(inc).forEach(k => {
+    if (!DB[k]) DB[k] = {tasks:[], st:{}, notes:{}};
+    const cur = DB[k], add = inc[k] || {};
+    (add.tasks || []).forEach(t => { if (!cur.tasks.some(x => x.id === t.id)) cur.tasks.push(t); });
+    Object.keys(add.st || {}).forEach(id => {
+      const c0 = cur.st[id] || {d:false, c:false}, i0 = add.st[id] || {};
+      cur.st[id] = {d: c0.d || !!i0.d, c: c0.c || !!i0.c};
+    });
+    Object.keys(add.notes || {}).forEach(n => {
+      if (!cur.notes[n]) cur.notes[n] = {};
+      ["res","chief"].forEach(f => {
+        const val = (add.notes[n] || {})[f];
+        if (val && !cur.notes[n][f]) cur.notes[n][f] = val;
+      });
+    });
+  });
+}
 function load(){
   let raw = null;
   try { raw = localStorage.getItem(KEY); } catch (e) { /* приватный режим браузера */ }
-  if (raw){ try { apply(JSON.parse(raw)); return; } catch (e) {} }
-  if (window.__SAVED__) apply(window.__SAVED__);   // копия файла со встроенными отметками
+  if (raw){ try { apply(JSON.parse(raw)); } catch (e) {} }
+  if (window.__SAVED__) mergeIn(window.__SAVED__);   // данные из файла добавляются к моим, не заменяют их
 }
 function payload(){ return {db:DB, saved:new Date().toISOString()}; }
+
+const BKEY = "alab-report-backups";
+function backup(){                                   // снимок прежнего состояния, до записи нового
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return;
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(BKEY) || "[]"); } catch (e) {}
+    if (list[0] && list[0].data === raw) return;
+    if (list[0] && Date.now() - Date.parse(list[0].at) < 15 * 60 * 1000) return;   // не чаще раза в 15 минут
+    list.unshift({at:new Date().toISOString(), data:raw});
+    localStorage.setItem(BKEY, JSON.stringify(list.slice(0, 12)));
+  } catch (e) {}
+}
+function backups(){
+  try { return JSON.parse(localStorage.getItem(BKEY) || "[]"); } catch (e) { return []; }
+}
 function save(){
+  backup();
   try { localStorage.setItem(KEY, JSON.stringify(payload())); }
   catch (e) { const el = document.getElementById("sync");
               if (el) el.textContent = "браузер не разрешает сохранение - выгрузите отметки в файл"; }
@@ -905,6 +955,45 @@ function syncNote(k, v){                              // в печать тек�
   const el = document.querySelector('.nbtxt[data-note-txt="' + k + '"]');
   if (el) el.textContent = v;
 }
+function bkpCount(data){
+  let n = 0;
+  try { const d = (JSON.parse(data).db) || {}; Object.keys(d).forEach(k => n += (d[k].tasks || []).length); }
+  catch (e) {}
+  return n;
+}
+function renderBkp(){
+  const list = backups(), box = document.getElementById("bkp");
+  let inner = '<div class="bh">Резервные копии</div>'
+    + '<div class="bt">Страница сама сохраняет состояние задач - до двенадцати последних снимков. '
+    + '«Вернуть задачи» добавит недостающие задачи и отметки из снимка, ничего не стирая.</div>';
+  inner += list.length
+    ? list.map((b, i) => {
+        const t = new Date(b.at);
+        return '<div class="bkpr"><span><b>' + pad2(t.getDate()) + "." + pad2(t.getMonth() + 1) + "</b> "
+          + pad2(t.getHours()) + ":" + pad2(t.getMinutes()) + ' · ' + bkpCount(b.data) + ' задач</span>'
+          + '<button class="bkpb" data-i="' + i + '">Вернуть задачи</button></div>';
+      }).join("")
+    : '<div class="bkpe">Копий пока нет: первая появится, как только вы измените задачи.</div>';
+  box.innerHTML = inner;
+}
+document.getElementById("btnBkp").addEventListener("click", () => {
+  const box = document.getElementById("bkp");
+  if (box.hidden) { renderBkp(); box.hidden = false; } else box.hidden = true;
+});
+document.addEventListener("click", e => {
+  const b = e.target.closest(".bkpb");
+  if (!b) return;
+  const item = backups()[Number(b.dataset.i)];
+  if (!item) return;
+  const before = Object.keys(DB).reduce((s, k) => s + (DB[k].tasks || []).length, 0);
+  try { mergeIn(JSON.parse(item.data)); } catch (err) { return; }
+  migrate(); save(); renderAll(); renderBkp();
+  const after = Object.keys(DB).reduce((s, k) => s + (DB[k].tasks || []).length, 0);
+  document.getElementById("sync").textContent = after > before
+    ? "из копии вернулось задач: " + (after - before)
+    : "в копии не нашлось задач, которых нет сейчас";
+});
+
 document.getElementById("btnPrint").addEventListener("click", () => window.print());
 
 document.getElementById("btnSave").addEventListener("click", () => {
@@ -935,23 +1024,7 @@ document.getElementById("fileImp").addEventListener("change", e => {
   const r = new FileReader();
   r.onload = () => {
     try {
-      const v = JSON.parse(r.result), inc = (v && v.db) || {};
-      Object.keys(inc).forEach(mk2 => {
-        if (!DB[mk2]) DB[mk2] = {tasks:[], st:{}, notes:{}};
-        const cur = DB[mk2], add = inc[mk2] || {};
-        (add.tasks || []).forEach(t => { if (!cur.tasks.some(x => x.id === t.id)) cur.tasks.push(t); });
-        Object.keys(add.st || {}).forEach(id => {
-          const c0 = cur.st[id] || {d:false, c:false}, i0 = add.st[id] || {};
-          cur.st[id] = {d: c0.d || !!i0.d, c: c0.c || !!i0.c};      // отметки складываем, не затираем
-        });
-        Object.keys(add.notes || {}).forEach(k2 => {
-          if (!cur.notes[k2]) cur.notes[k2] = {};
-          ["res","chief"].forEach(fl => {
-            const inv = (add.notes[k2] || {})[fl];
-            if (inv && !cur.notes[k2][fl]) cur.notes[k2][fl] = inv;
-          });
-        });
-      });
+      mergeIn(JSON.parse(r.result));
       migrate(); save(); renderAll();
       document.getElementById("sync").textContent = "отметки из файла добавлены";
     } catch (err) {
