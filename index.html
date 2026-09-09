@@ -242,7 +242,9 @@ section.view{padding:22px 0 0}
 .dinp::-webkit-calendar-picker-indicator{opacity:.55;cursor:pointer}
 .undate{font:inherit;font-size:10px;line-height:1;color:var(--dim);border:1px solid var(--line);border-radius:7px;
   padding:3px 6px;cursor:pointer;background:transparent;flex:0 0 auto;white-space:nowrap}
-.undate:hover{color:var(--lilac);border-color:var(--hair)}
+.undate:hover,.tomonth:hover{color:var(--lilac);border-color:var(--hair)}
+.tomonth{font:inherit;font-size:10px;line-height:1;color:var(--dim);border:1px solid var(--line);border-radius:7px;
+  padding:3px 6px;cursor:pointer;background:transparent;flex:0 0 auto;white-space:nowrap}
 .dtxt{display:none;font-size:10.5px;color:var(--soft);font-variant-numeric:tabular-nums;white-space:nowrap}
 .tools2{display:flex;gap:5px;align-items:center;justify-content:flex-end;white-space:nowrap}
 .edit{font:inherit;font-size:12px;line-height:1;color:var(--dim);border:1px solid var(--line);border-radius:7px;
@@ -335,7 +337,7 @@ section.view{padding:22px 0 0}
   /* задачи: текст, метка проекта и две галочки */
   .row{grid-template-columns:1fr 118px 52px;gap:8px;padding:5px 11px}
   .row .psel,.row.hdr .prjh{display:none}
-  .dinp,.undate{display:none!important}
+  .dinp,.undate,.tomonth{display:none!important}
   .dcell{display:block!important}
   .dtxt{display:inline-block!important}
   .ttl{font-size:11px;padding-left:14px}
@@ -439,10 +441,11 @@ function migrate(){                                        // старые за�
     const ws = weeksOf(y, m);
     d.tasks.forEach(t => {
       if (OLD_P[t.p]) t.p = OLD_P[t.p];
-      if (t.day === undefined){
-        const w = t.w && String(t.w) !== "m" ? ws.find(x => String(x.i) === String(t.w)) : null;
-        t.day = w ? k + "-" + pad2(w.from) : "";
-        delete t.w;
+      if (t.day === undefined) t.day = "";
+      if (t.w === undefined || t.w === null || t.w === ""){
+        const n = t.day && t.day.slice(0,7) === k ? Number(t.day.slice(8)) : 0;
+        const w = n ? ws.find(x => n >= x.from && n <= x.to) : null;
+        t.w = w ? String(w.i) : "m";
       }
     });
   });
@@ -511,11 +514,19 @@ function weekOfDay(day){                                   // "2026-09-10" -> н
   const n = Number(day.slice(8)), w = WEEKS.find(x => n >= x.from && n <= x.to);
   return w ? w.i : 0;
 }
+function wOf(t){                                           // где задача: "m" или номер недели
+  const byDay = weekOfDay(dOf(t));
+  if (byDay) return byDay;                                 // дата всегда главнее
+  return String(t.w || "m") === "m" ? "m" : Number(t.w);
+}
 function tasksOf(w){
-  const list = mdata().tasks;
-  if (String(w) === "m") return list.filter(t => !weekOfDay(dOf(t)));   // без даты - в плане месяца
-  return list.filter(t => weekOfDay(dOf(t)) === Number(w))
-             .sort((a, b) => dOf(a).localeCompare(dOf(b)));
+  const list = mdata().tasks.filter(t => String(wOf(t)) === String(w));
+  if (String(w) === "m") return list;
+  return list.sort((a, b) => {                             // сначала по датам, потом задачи без дня
+    const x = dOf(a), y = dOf(b);
+    if (x && y) return x.localeCompare(y);
+    return x ? -1 : y ? 1 : 0;
+  });
 }
 function dayLabel(day){                                    // "2026-09-10" -> "чт 10"
   if (!day) return "";
@@ -524,10 +535,13 @@ function dayLabel(day){                                    // "2026-09-10" -> "�
 }
 function dateCell(t){
   const v = dOf(t);
+  const btn = v
+    ? '<button class="undate" data-id="' + t.id + '" title="Убрать дату: задача останется в плане недели, без конкретного дня">без даты</button>'
+    : (String(wOf(t)) === "m" ? ""
+       : '<button class="tomonth" data-id="' + t.id + '" title="Перенести задачу в план месяца">в месяц</button>');
   return '<span class="dcell">'
     + '<input type="date" class="dinp" data-id="' + t.id + '" value="' + esc(v) + '" title="Дата задачи - по ней задача попадает в неделю">'
-    + (v ? '<button class="undate" data-id="' + t.id + '" title="Убрать дату: задача вернётся в план месяца">в план</button>' : "")
-    + '<span class="dtxt">' + esc(dayLabel(v)) + '</span></span>';
+    + btn + '<span class="dtxt">' + esc(dayLabel(v)) + '</span></span>';
 }
 function count(list){
   let d = 0, c = 0;
@@ -767,6 +781,8 @@ document.addEventListener("click", e => {
   if (go){ setTab(go.dataset.go); return; }
   const un = e.target.closest(".undate");
   if (un){ setDate(un.dataset.id, ""); return; }
+  const tm = e.target.closest(".tomonth");
+  if (tm){ toMonth(tm.dataset.id); return; }
   const del = e.target.closest(".del");
   if (del){
     const d = mdata(), i = d.tasks.findIndex(x => x.id === del.dataset.id);
@@ -815,14 +831,28 @@ function setDate(id, v){
   const d = mdata(), i = d.tasks.findIndex(x => x.id === id);
   if (i < 0) return;
   const t = d.tasks[i];
-  if (v && v.slice(0,7) !== mkey()){                        // дата другого месяца - задача переезжает туда
+  if (!v){                                                  // день снят, неделя остаётся прежней
+    t.w = String(wOf(t));
+    t.day = "";
+  } else if (v.slice(0,7) !== mkey()){                      // дата другого месяца - задача переезжает туда
     const k2 = v.slice(0,7);
     if (!DB[k2]) DB[k2] = {tasks:[], st:{}, notes:{}};
-    t.day = v;
+    const ws = weeksOf(Number(k2.slice(0,4)), Number(k2.slice(5,7)) - 1);
+    const n = Number(v.slice(8)), wk = ws.find(x => n >= x.from && n <= x.to);
+    t.day = v; t.w = wk ? String(wk.i) : "m";
     DB[k2].tasks.push(t);
     if (d.st[id]) { DB[k2].st[id] = d.st[id]; delete d.st[id]; }
     d.tasks.splice(i, 1);
-  } else t.day = v;
+  } else {
+    t.day = v;
+    t.w = String(weekOfDay(v) || "m");
+  }
+  save(); renderAll();
+}
+function toMonth(id){                                       // задача уходит в план месяца
+  const t = mdata().tasks.find(x => x.id === id);
+  if (!t) return;
+  t.day = ""; t.w = "m";
   save(); renderAll();
 }
 
@@ -848,7 +878,8 @@ document.addEventListener("submit", e => {
     id: "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
     t: title,
     p: (fd.get("p") || "alab").toString(),
-    day: day
+    day: day,
+    w: day ? String(weekOfDay(day) || "m") : String(f.dataset.w || "m")
   };
   if (day && day.slice(0,7) !== mkey()){                    // дата другого месяца - задача уходит туда
     const k2 = day.slice(0,7);
