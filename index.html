@@ -196,6 +196,13 @@ h1{font-size:clamp(29px,4.4vw,42px);line-height:1.05;font-weight:300;margin:.16e
   border-radius:8px;padding:3px 11px;margin-left:auto;cursor:pointer;background:transparent}
 .bkpb:hover{background:var(--panel2)}
 .bkpe{font-size:13px;color:var(--dim)}
+.warn{margin-top:12px;border:1px solid var(--magenta);border-radius:13px;background:var(--panel);
+  padding:11px 15px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.warn .wt{font-size:13px;color:var(--ink);line-height:1.45;flex:1 1 320px;min-width:0}
+.warn .wt b{font-weight:500}
+.warn button{font:inherit;font-size:12.5px;font-weight:500;color:var(--lilac);border:1px solid var(--hair);
+  border-radius:9px;padding:5px 13px;cursor:pointer;background:var(--panel2);white-space:nowrap}
+.warn .later{color:var(--dim);border-color:var(--line)}
 
 nav.tabs{display:flex;gap:4px;margin:22px 0 4px;border-bottom:1px solid var(--line);flex-wrap:wrap}
 nav.tabs button{padding:8px 10px;font-size:12.5px;white-space:nowrap;color:var(--soft);border-bottom:2px solid transparent;
@@ -333,7 +340,7 @@ section.view{padding:22px 0 0}
 
 @media print{
   body{background:#fff;background-image:none;font-size:10.5px}
-  .tools,.sync,.sync-row,nav.tabs,.addrow,.tools2,.mnav,.sub,.hint,.nb.chief{display:none!important}
+  .tools,.sync,.sync-row,nav.tabs,.addrow,.tools2,.mnav,.sub,.hint,.nb.chief,.warn,.bkp{display:none!important}
   .wrap{max-width:none;padding:0}
   header.top{padding:0}
   .kicker{font-size:8px;letter-spacing:.18em;margin-bottom:4px}
@@ -403,6 +410,7 @@ section.view{padding:22px 0 0}
     </div>
     <div class="sync-row"><span class="sync" id="sync">задачи и отметки хранятся в этом браузере · онлайн-страница и файл на компьютере - разные хранилища</span></div>
     <div class="bkp" id="bkp" hidden></div>
+    <div class="warn" id="warn" hidden></div>
 
     <nav class="tabs" role="tablist" id="tabs"></nav>
   </header>
@@ -493,6 +501,8 @@ function load(){
 function payload(){ return {db:DB, saved:new Date().toISOString()}; }
 
 const BKEY = "alab-report-backups";
+const FKEY = "alab-report-file-saved";                // когда последний раз скачивали копию файла
+const HKEY = "alab-report-warn-hidden";               // когда напоминание отложили
 function backup(){                                   // снимок прежнего состояния, до записи нового
   try {
     const raw = localStorage.getItem(KEY);
@@ -955,6 +965,32 @@ function syncNote(k, v){                              // в печать тек�
   const el = document.querySelector('.nbtxt[data-note-txt="' + k + '"]');
   if (el) el.textContent = v;
 }
+const DAY = 24 * 3600 * 1000;
+function renderWarn(){
+  const box = document.getElementById("warn");
+  const tasks = Object.keys(DB).reduce((s, k) => s + ((DB[k].tasks || []).length), 0);
+  if (!tasks) { box.hidden = true; return; }
+  let saved = 0, hidden = 0;
+  try { saved = Date.parse(localStorage.getItem(FKEY) || "") || 0; } catch (e) {}
+  try { hidden = Date.parse(localStorage.getItem(HKEY) || "") || 0; } catch (e) {}
+  if (Date.now() - hidden < 3 * DAY) { box.hidden = true; return; }     // отложено на три дня
+  const days = saved ? Math.floor((Date.now() - saved) / DAY) : -1;
+  if (saved && days < 7) { box.hidden = true; return; }
+  box.innerHTML = '<span class="wt">'
+    + (saved ? '<b>Копия задач не сохранялась ' + days + ' дн.</b> ' : '<b>Копия задач ещё не сохранялась.</b> ')
+    + 'Задачи живут в этом браузере: если его почистить или сесть за другой компьютер, они не найдутся. '
+    + 'Кнопка рядом скачает файл со всеми задачами - его можно переслать и открыть где угодно.</span>'
+    + '<button type="button" id="warnSave">Сохранить копию файла</button>'
+    + '<button type="button" class="later" id="warnLater">Напомнить через три дня</button>';
+  box.hidden = false;
+}
+document.addEventListener("click", e => {
+  if (e.target.closest("#warnSave")) { document.getElementById("btnSave").click(); return; }
+  if (e.target.closest("#warnLater")){
+    try { localStorage.setItem(HKEY, new Date().toISOString()); } catch (err) {}
+    document.getElementById("warn").hidden = true;
+  }
+});
 function bkpCount(data){
   let n = 0;
   try { const d = (JSON.parse(data).db) || {}; Object.keys(d).forEach(k => n += (d[k].tasks || []).length); }
@@ -1010,7 +1046,9 @@ document.getElementById("btnSave").addEventListener("click", () => {
   const now = new Date();
   download(html, "Отчёт a.lab - " + MN[M] + " (" + pad2(now.getDate()) + "-" + pad2(now.getMonth()+1)
                  + "-" + String(now.getFullYear()).slice(2) + ").html", "text/html;charset=utf-8");
+  try { localStorage.setItem(FKEY, new Date().toISOString()); } catch (e) {}
   document.getElementById("sync").textContent = "копия файла сохранена вместе с отметками";
+  renderWarn();
 });
 
 document.getElementById("btnExp").addEventListener("click", () => {
@@ -1038,6 +1076,7 @@ document.getElementById("fileImp").addEventListener("change", e => {
 load();
 migrate();
 renderAll();
+renderWarn();
 </script>
 </body>
 </html>
