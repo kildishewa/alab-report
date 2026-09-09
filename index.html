@@ -208,7 +208,7 @@ section.view{padding:22px 0 0}
 
 /* список задач */
 .list{border:1px solid var(--line);border-radius:15px;background:var(--panel);overflow:hidden}
-.row{display:grid;grid-template-columns:1fr 142px 152px 152px 58px;gap:10px;align-items:center;
+.row{display:grid;grid-template-columns:1fr 142px 172px 148px 58px;gap:10px;align-items:center;
   padding:9px 16px;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
 .row.hdr{padding:7px 16px;background:var(--panel2)}
@@ -220,7 +220,7 @@ section.view{padding:22px 0 0}
   background:var(--pc,var(--lilac))}
 .ttl .pj{display:inline-block;font-size:11px;font-weight:500;letter-spacing:.05em;line-height:1.3;
   color:var(--pc,var(--lilac));border:1px solid currentColor;border-radius:7px;padding:1px 8px;
-  margin-right:9px;vertical-align:1px;white-space:nowrap}
+  margin-left:9px;vertical-align:1px;white-space:nowrap}
 .row.is-done .ttl .pj{opacity:.5}
 .row.is-done .ttl{color:var(--soft)}
 .row.is-done .ttl b{text-decoration:line-through;text-decoration-color:var(--hair)}
@@ -234,8 +234,16 @@ section.view{padding:22px 0 0}
 .tick.c[aria-pressed="true"]{background:var(--check)}
 .tick[aria-pressed="true"] svg{opacity:1;transform:scale(1)}
 .tick:hover{border-color:var(--lilac)}
-.psel,.wsel{font:inherit;font-size:11.5px;color:var(--soft);background:var(--panel2);border:1px solid var(--line);
+.psel{font:inherit;font-size:11.5px;color:var(--soft);background:var(--panel2);border:1px solid var(--line);
   border-radius:8px;padding:3px 7px;cursor:pointer;max-width:100%;width:100%}
+.dcell{display:flex;gap:6px;align-items:center;min-width:0}
+.dinp{font:inherit;font-size:11.5px;color:var(--soft);background:var(--panel2);border:1px solid var(--line);
+  border-radius:8px;padding:3px 7px;cursor:pointer;min-width:0;flex:1 1 auto}
+.dinp::-webkit-calendar-picker-indicator{opacity:.55;cursor:pointer}
+.undate{font:inherit;font-size:10px;line-height:1;color:var(--dim);border:1px solid var(--line);border-radius:7px;
+  padding:3px 6px;cursor:pointer;background:transparent;flex:0 0 auto;white-space:nowrap}
+.undate:hover{color:var(--lilac);border-color:var(--hair)}
+.dtxt{display:none;font-size:10.5px;color:var(--soft);font-variant-numeric:tabular-nums;white-space:nowrap}
 .tools2{display:flex;gap:5px;align-items:center;justify-content:flex-end;white-space:nowrap}
 .edit{font:inherit;font-size:12px;line-height:1;color:var(--dim);border:1px solid var(--line);border-radius:7px;
   padding:2px 7px;cursor:pointer;background:transparent}
@@ -248,7 +256,7 @@ section.view{padding:22px 0 0}
 .empty{padding:15px 16px;font-size:13.5px;color:var(--dim)}
 @media(max-width:820px){
   .row{grid-template-columns:1fr 112px 58px;gap:8px;padding:9px 13px}
-  .psel,.wsel{display:none}
+  .psel,.dcell{display:none}
   .row.hdr .prjh,.row.hdr .wkh{display:none}
 }
 
@@ -325,8 +333,11 @@ section.view{padding:22px 0 0}
   .rc .rt{display:none}
   .eyebrow{margin:13px 0 7px;font-size:8.5px}
   /* задачи: текст, метка проекта и две галочки */
-  .row{grid-template-columns:1fr 118px;gap:8px;padding:5px 11px}
-  .row .psel,.row .wsel,.row.hdr .wkh,.row.hdr .prjh{display:none}
+  .row{grid-template-columns:1fr 118px 52px;gap:8px;padding:5px 11px}
+  .row .psel,.row.hdr .prjh{display:none}
+  .dinp,.undate{display:none!important}
+  .dcell{display:block!important}
+  .dtxt{display:inline-block!important}
   .ttl{font-size:11px;padding-left:14px}
   .ttl:before{top:6px;width:6px;height:6px}
   .ttl .pj{font-size:8.5px;padding:0 6px;margin-right:7px}
@@ -386,9 +397,7 @@ section.view{padding:22px 0 0}
 window.__SAVED__ = null; // SAVEDLINE
 
 const PROJ = {
-  alab:{n:"a.lab · внутреннее", c:"--p-alab"},
-  site:{n:"a.lab · сайт", c:"--p-alab"},
-  prem:{n:"a.lab · премии", c:"--p-alab"},
+  alab:{n:"a.lab", c:"--p-alab"},
   lice:{n:"Lari · мороженое", c:"--p-lice"},
   lev: {n:"Lari · мероприятия", c:"--p-lev"},
   mila:{n:"Milado", c:"--p-mila"},
@@ -421,6 +430,23 @@ const TICK = '<svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.3 4.6 9 
 let DB = {};           // { "2026-09": {tasks:[], st:{}, notes:{}} }
 
 function apply(v){ if (v && v.db) DB = v.db; }
+const OLD_P = {site:"alab", prem:"alab", mn:"alab", g8:"alab"};
+function migrate(){                                        // старые записи: проекты a.lab слиты, недели -> даты
+  Object.keys(DB).forEach(k => {
+    const d = DB[k];
+    if (!d || !d.tasks) return;
+    const y = Number(k.slice(0,4)), m = Number(k.slice(5,7)) - 1;
+    const ws = weeksOf(y, m);
+    d.tasks.forEach(t => {
+      if (OLD_P[t.p]) t.p = OLD_P[t.p];
+      if (t.day === undefined){
+        const w = t.w && String(t.w) !== "m" ? ws.find(x => String(x.i) === String(t.w)) : null;
+        t.day = w ? k + "-" + pad2(w.from) : "";
+        delete t.w;
+      }
+    });
+  });
+}
 function load(){
   let raw = null;
   try { raw = localStorage.getItem(KEY); } catch (e) { /* приватный режим браузера */ }
@@ -479,7 +505,30 @@ function curWeek(){
 }
 
 /* ---------- выборка ---------- */
-const tasksOf = w => mdata().tasks.filter(t => String(t.w) === String(w));
+const dOf = t => t.day || "";
+function weekOfDay(day){                                   // "2026-09-10" -> номер недели месяца, 0 если не наш месяц
+  if (!day || day.slice(0,7) !== mkey()) return 0;
+  const n = Number(day.slice(8)), w = WEEKS.find(x => n >= x.from && n <= x.to);
+  return w ? w.i : 0;
+}
+function tasksOf(w){
+  const list = mdata().tasks;
+  if (String(w) === "m") return list.filter(t => !weekOfDay(dOf(t)));   // без даты - в плане месяца
+  return list.filter(t => weekOfDay(dOf(t)) === Number(w))
+             .sort((a, b) => dOf(a).localeCompare(dOf(b)));
+}
+function dayLabel(day){                                    // "2026-09-10" -> "чт 10"
+  if (!day) return "";
+  const d = new Date(day + "T00:00:00");
+  return SH[(d.getDay() + 6) % 7].toLowerCase() + " " + d.getDate();
+}
+function dateCell(t){
+  const v = dOf(t);
+  return '<span class="dcell">'
+    + '<input type="date" class="dinp" data-id="' + t.id + '" value="' + esc(v) + '" title="Дата задачи - по ней задача попадает в неделю">'
+    + (v ? '<button class="undate" data-id="' + t.id + '" title="Убрать дату: задача вернётся в план месяца">в план</button>' : "")
+    + '<span class="dtxt">' + esc(dayLabel(v)) + '</span></span>';
+}
 function count(list){
   let d = 0, c = 0;
   list.forEach(t => { const s = st(t.id); if (s.d) d++; if (s.c) c++; });
@@ -512,26 +561,28 @@ function projOptions(sel){
   return Object.keys(PROJ).map(k => '<option value="' + k + '"' + (k === sel ? " selected" : "") + '>'
          + esc(PROJ[k].n) + '</option>').join("");
 }
-function whereOptions(sel){
-  return '<option value="m"' + (String(sel) === "m" ? " selected" : "") + '>План месяца</option>'
-    + WEEKS.map(w => '<option value="' + w.i + '"' + (String(sel) === String(w.i) ? " selected" : "") + '>'
-      + "Неделя " + w.i + " · " + w.from + "-" + w.to + '</option>').join("");
+function defDate(w){                                       // дата по умолчанию в форме добавления
+  if (String(w) === "m") return "";
+  const wk = WEEKS.find(x => String(x.i) === String(w));
+  if (!wk) return "";
+  const t = today();
+  return mkey() + "-" + pad2(t >= wk.from && t <= wk.to ? t : wk.from);
 }
 function ticks(id){
   const s = st(id);
   return '<span class="bx">'
-    + '<button class="tick d" data-id="' + id + '" data-k="d" aria-pressed="' + s.d + '" title="Выполнена" aria-label="Выполнена">' + TICK + '</button>'
-    + '<button class="tick c" data-id="' + id + '" data-k="c" aria-pressed="' + s.c + '" title="Проверена руководителем" aria-label="Проверена руководителем">' + TICK + '</button></span>';
+    + '<button class="tick d" data-id="' + id + '" data-k="d" aria-pressed="' + s.d + '" title="Выполнено" aria-label="Выполнено">' + TICK + '</button>'
+    + '<button class="tick c" data-id="' + id + '" data-k="c" aria-pressed="' + s.c + '" title="Проверено руководителем" aria-label="Проверено руководителем">' + TICK + '</button></span>';
 }
 const pr = p => PROJ[p] || {n:"без проекта", c:"--p-pt"};
 function rowHTML(t){
   const s = st(t.id), P = pr(t.p);
   return '<div class="row' + (s.d ? " is-done" : "") + '">'
     + '<span class="ttl" style="--pc:var(' + P.c + ')">'
-    + '<span class="pj">' + esc(P.n) + '</span>'
-    + '<b class="tt" data-id="' + t.id + '">' + esc(t.t) + '</b></span>'
+    + '<b class="tt" data-id="' + t.id + '">' + esc(t.t) + '</b>'
+    + '<span class="pj">' + esc(P.n) + '</span></span>'
     + ticks(t.id)
-    + '<select class="wsel" data-id="' + t.id + '" title="Когда: план месяца или неделя">' + whereOptions(t.w) + '</select>'
+    + dateCell(t)
     + '<select class="psel" data-id="' + t.id + '" title="Проект">' + projOptions(t.p) + '</select>'
     + '<span class="tools2">'
     + '<button class="edit" data-id="' + t.id + '" title="Изменить текст" aria-label="Изменить текст">✎</button>'
@@ -539,7 +590,7 @@ function rowHTML(t){
     + '</div>';
 }
 const HDR = '<div class="row hdr"><span>Задача</span>'
-          + '<span class="bx"><span>Выполнена</span><span>Проверена</span></span>'
+          + '<span class="bx"><span>Выполнено</span><span>Проверено</span></span>'
           + '<span class="wkh">Дата</span><span class="prjh">Проект</span><span></span></div>';
 
 function listHTML(w, emptyText){
@@ -548,7 +599,7 @@ function listHTML(w, emptyText){
     + (list.length ? list.map(rowHTML).join("") : '<div class="empty">' + esc(emptyText) + '</div>')
     + '<form class="addrow" data-w="' + w + '">'
     + '<input name="t" placeholder="Новая задача" autocomplete="off">'
-    + '<select name="w">' + whereOptions(w) + '</select>'
+    + '<input type="date" name="d" value="' + defDate(w) + '" title="Дата задачи">'
     + '<select name="p">' + projOptions("alab") + '</select>'
     + '<button type="submit">Добавить</button></form></div>';
 }
@@ -572,7 +623,7 @@ function monthHTML(){
     + '<div class="rc"><div class="rw">Каждый понедельник</div><div class="rd">План на неделю</div>'
     + '<div class="rt">Задачи недели ставятся на планёрке.</div></div>'
     + '<div class="rc"><div class="rw">Каждый четверг</div><div class="rd">Проверка сделанного</div>'
-    + '<div class="rt">Первая галочка «выполнена» - моя, вторая «проверена» - Александры.</div></div></div>';
+    + '<div class="rt">Первая галочка «выполнено» - моя, вторая «проверено» - Александры.</div></div></div>';
 
   h += '<div class="eyebrow">Задачи месяца</div>'
     + listHTML("m", "Задач месяца пока нет. Впишите их в строке ниже.");
@@ -714,6 +765,8 @@ document.addEventListener("click", e => {
   if (tb){ setTab(tb.dataset.tab); return; }
   const go = e.target.closest("[data-go]");
   if (go){ setTab(go.dataset.go); return; }
+  const un = e.target.closest(".undate");
+  if (un){ setDate(un.dataset.id, ""); return; }
   const del = e.target.closest(".del");
   if (del){
     const d = mdata(), i = d.tasks.findIndex(x => x.id === del.dataset.id);
@@ -754,12 +807,24 @@ document.addEventListener("change", e => {
     if (t) { t.p = ps.value; save(); renderAll(); }
     return;
   }
-  const ws = e.target.closest(".wsel");
-  if (ws){
-    const t = mdata().tasks.find(x => x.id === ws.dataset.id);
-    if (t) { t.w = ws.value; save(); renderAll(); }
-  }
+  const di = e.target.closest(".dinp");
+  if (di){ setDate(di.dataset.id, di.value || ""); }
 });
+
+function setDate(id, v){
+  const d = mdata(), i = d.tasks.findIndex(x => x.id === id);
+  if (i < 0) return;
+  const t = d.tasks[i];
+  if (v && v.slice(0,7) !== mkey()){                        // дата другого месяца - задача переезжает туда
+    const k2 = v.slice(0,7);
+    if (!DB[k2]) DB[k2] = {tasks:[], st:{}, notes:{}};
+    t.day = v;
+    DB[k2].tasks.push(t);
+    if (d.st[id]) { DB[k2].st[id] = d.st[id]; delete d.st[id]; }
+    d.tasks.splice(i, 1);
+  } else t.day = v;
+  save(); renderAll();
+}
 
 document.addEventListener("input", e => {
   const ta = e.target.closest("textarea[data-note]");
@@ -778,12 +843,18 @@ document.addEventListener("submit", e => {
   e.preventDefault();
   const fd = new FormData(f), title = (fd.get("t") || "").toString().trim();
   if (!title) return;
-  mdata().tasks.push({
+  const day = (fd.get("d") || "").toString();
+  const task = {
     id: "t" + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
     t: title,
     p: (fd.get("p") || "alab").toString(),
-    w: (fd.get("w") || f.dataset.w || "m").toString()
-  });
+    day: day
+  };
+  if (day && day.slice(0,7) !== mkey()){                    // дата другого месяца - задача уходит туда
+    const k2 = day.slice(0,7);
+    if (!DB[k2]) DB[k2] = {tasks:[], st:{}, notes:{}};
+    DB[k2].tasks.push(task);
+  } else mdata().tasks.push(task);
   save(); renderAll();
   const el = document.querySelector('.addrow input[name="t"]');
   if (el) el.focus();
@@ -848,7 +919,7 @@ document.getElementById("fileImp").addEventListener("change", e => {
           });
         });
       });
-      save(); renderAll();
+      migrate(); save(); renderAll();
       document.getElementById("sync").textContent = "отметки из файла добавлены";
     } catch (err) {
       document.getElementById("sync").textContent = "файл не читается - нужен файл выгрузки отметок";
@@ -859,6 +930,7 @@ document.getElementById("fileImp").addEventListener("change", e => {
 });
 
 load();
+migrate();
 renderAll();
 </script>
 </body>
